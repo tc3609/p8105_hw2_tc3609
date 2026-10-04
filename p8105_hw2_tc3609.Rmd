@@ -1,0 +1,272 @@
+---
+title: "P8105 Homework 2"
+author: "Joanna Chuang"
+date: "2026-10-04"
+output: github_document
+---
+
+```{r setup}
+library(tidyverse)
+library(readxl)
+```
+
+# Problem 1
+```{r}
+nyc_subway =
+  read_csv("Data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv")
+
+nyc_subway = 
+  nyc_subway |>
+  janitor::clean_names() |>
+  select(
+    line,
+    station_name,
+    station_latitude,
+    station_longitude,
+    route1:route11,
+    entrance_type,
+    entry,
+    vending,
+    ada
+  ) |>
+  mutate(
+  entry = case_when(
+    entry == "YES" ~ TRUE,
+    entry == "NO" ~ FALSE
+  )
+)
+  
+
+nyc_subway |>
+  distinct(line, station_name) |>
+  nrow()
+  
+nyc_subway |>
+  filter(ada == TRUE) |>
+  distinct(line, station_name) |>
+  nrow()
+
+nyc_subway |>
+  filter(vending == "NO") |>
+  summarize(
+    proportion_entry = mean(entry)
+  )  
+
+nyc_subway_long =
+  nyc_subway |>
+  mutate(
+    across(route1:route11, as.character)
+  ) |>
+  pivot_longer(
+    route1:route11,
+    names_to = "route_number",
+    values_to = "route_name"
+  ) |>
+  drop_na(route_name)
+  
+nyc_subway_long |>
+filter(route_name == "A") |>
+distinct(line, station_name) |>
+nrow()
+  
+nyc_subway_long |>
+filter(
+  route_name == "A",
+  ada == TRUE
+) |>
+distinct(line, station_name) |>
+ nrow()
+
+```
+
+The csv file contains information about individual subway station entrances and exits, including station line and name, station location, routes served, entrance type, entry permission, vending availability, and ADA compliance. To clean the datatset, I standaradized variable names and select variables that are relevant for futher questions' anlaysis, and converting the entry variable from character values "YES"/"NO" to a logical variable "TRUE"/"FALSE". The cleaned dataset includes 1868 observations and 19 variables. However, it is not fully tidy because subway routes are stored across multiple columns instead of a single route variable.
+
+There are 465 distinct stations, 84 ADA compliant stations and and 37.7% of station entrances/exits without vending allow entrance. There are 60 distinct stations on the A train and 17 of the stations are ADA compliant.
+
+# Problem 2
+```{r}
+mr_trash =
+  read_excel(
+    "Data/202509 Trash Wheel Collection Data.xlsx",
+    sheet = "Mr. Trash Wheel",
+    range = "A2:N709"
+  ) |>
+  janitor::clean_names() |>
+  filter(!is.na(dumpster)) |>
+  mutate(
+    year = as.integer(year),
+    sports_balls = as.integer(round(sports_balls)),
+    trash_wheel = "Mr. Trash Wheel"
+  )
+
+professor_trash =
+  read_excel(
+    "Data/202509 Trash Wheel Collection Data.xlsx",
+    sheet = "Professor Trash Wheel",
+    range = "A2:M134"
+  ) |>
+  janitor::clean_names() |>
+  filter(!is.na(dumpster)) |>
+  mutate(
+    year = as.integer(year),
+    trash_wheel = "Professor Trash Wheel"
+  )
+
+gwynns_trash =
+  read_excel(
+    "Data/202509 Trash Wheel Collection Data.xlsx",
+    sheet = "Gwynns Falls Trash Wheel",
+    range = "A2:L351"
+  ) |>
+  janitor::clean_names() |>
+  filter(!is.na(dumpster)) |>
+  mutate(
+    year = as.integer(year),
+    trash_wheel = "Gwynns Falls Trash Wheel"
+  )
+
+trash_wheel =
+  bind_rows(
+    mr_trash,
+    professor_trash,
+    gwynns_trash
+  )
+
+professor_weight =
+  trash_wheel |>
+  filter(trash_wheel == "Professor Trash Wheel") |>
+  summarize(
+    total_weight = sum(weight_tons, na.rm = TRUE)
+  )
+
+gwynns_june =
+  trash_wheel |>
+  filter(
+    trash_wheel == "Gwynns Falls Trash Wheel",
+    year == 2022,
+    str_trim(month) == "June"
+  ) |>
+  summarize(
+    total_cigarette_butts = sum(cigarette_butts, na.rm = TRUE)
+  )
+
+```
+
+The combined Trash Wheel dataset contains `r nrow(trash_wheel)` observations from Mr. Trash Wheel, Professor Trash Wheel, and Gwynns Falls Trash Wheel. Key variables include dumpster number, month, year, date, trash weight in tons, volume, plastic bottles, polystyrene, cigarette butts, plastic bags, wrappers, and trash wheel identity. For the available data, Professor Trash Wheel collected a total of `r professor_weight$total_weight` tons of trash, and Gwynns Falls Trash Wheel collected `r format(gwynns_june$total_cigarette_butts, big.mark = ",", scientific = FALSE)` cigarette butts in June 2022.
+
+
+# Problem 3
+```{r}
+mci_baseline =
+  read_csv(
+    "Data/MCI_baseline.csv",
+    skip = 1,
+    na = "."
+  ) |>
+  janitor::clean_names() |>
+  rename(
+    id = id,
+    baseline_age = current_age,
+    sex = sex,
+    education = education,
+    apoe4 = apoe4,
+    age_at_onset = age_at_onset
+  ) |>
+  mutate(
+    sex = case_when(
+      sex == 0 ~ "Female",
+      sex == 1 ~ "Male"
+    ),
+    apoe4 = case_when(
+      apoe4 == 0 ~ "Non-carrier",
+      apoe4 == 1 ~ "Carrier"
+    )
+  ) |>
+  filter(
+    is.na(age_at_onset) | age_at_onset > baseline_age
+  )
+
+glimpse(mci_baseline)
+nrow(mci_baseline)
+
+mci_baseline |>
+  summarize(
+    participants = n(),
+    developed_mci = sum(!is.na(age_at_onset)),
+    average_baseline_age = mean(baseline_age),
+    female_apoe4_proportion =
+      mean(apoe4[sex == "Female"] == "Carrier")
+  )
+
+mci_amyloid =
+  read_csv(
+    "Data/mci_amyloid.csv",
+    skip = 1
+  ) |>
+  janitor::clean_names() |>
+  rename(
+    id = study_id,
+    baseline = baseline,
+    time_2 = time_2,
+    time_4 = time_4,
+    time_6 = time_6,
+    time_8 = time_8
+  ) |>
+  pivot_longer(
+    baseline:time_8,
+    names_to = "visit",
+    values_to = "amyloid_ratio"
+  ) |>
+  mutate(
+    amyloid_ratio = as.numeric(amyloid_ratio),
+    time = case_when(
+      visit == "baseline" ~ 0,
+      visit == "time_2" ~ 2,
+      visit == "time_4" ~ 4,
+      visit == "time_6" ~ 6,
+      visit == "time_8" ~ 8
+    )
+  ) |>
+  drop_na(amyloid_ratio)
+
+glimpse(mci_amyloid)
+
+baseline_only =
+  anti_join(
+    mci_baseline,
+    mci_amyloid |> distinct(id),
+    by = "id"
+  )
+
+amyloid_only =
+  anti_join(
+    mci_amyloid |> distinct(id),
+    mci_baseline,
+    by = "id"
+  )
+
+nrow(baseline_only)
+nrow(amyloid_only)
+
+mci_final =
+  inner_join(
+    mci_amyloid,
+    mci_baseline,
+    by = "id"
+  )
+
+glimpse(mci_final)
+
+mci_final |>
+  distinct(id) |>
+  nrow()
+
+write_csv(
+  mci_final,
+  "Data/mci_final.csv"
+)
+
+```
+The baseline dataset originally included 483 participants. When importing the data, I skipped the first row because it contained variable descriptions rather than actual data, cleaned the variable names, and treated "." as missing values. I also changed sex and APOE4 status from numeric codes into categorical variables so they were easier to interpret. Since the study only included participants who were free of MCI at baseline, I removed 4 people whose MCI onset occurred at or before their baseline age. This left 479 participants in the cleaned dataset. Among them, 93 developed MCI during follow-up. The average baseline age was about 65.0 years, and 30% of the women in the study were APOE4 carriers.
+For the amyloid dataset, I skipped the descriptive first row and cleaned the variable names. Because the amyloid measurements were originally stored in separate columns for baseline and later follow-up visits, I reshaped the data into long format so that each row represented one measurement for one participant at one time point. I also converted the amyloid ratio to a numeric variable and removed missing measurements. After cleaning, the dataset contained 2,263 biomarker observations. There were more rows than participants because each person could have several measurements over time.
+When compared participant IDs across the two datasets, I found that 8 participants appeared only in the cleaned baseline dataset and 16 appeared only in the amyloid dataset. Moreover, I used an inner join so that only participants in both datasets were kept. The final combined dataset included 471 unique participants. Each row contains a participant’s amyloid measurement at a specific follow-up time along with their baseline information, such as age, sex, education, APOE4 status, and age at MCI onset. 
