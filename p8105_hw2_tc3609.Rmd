@@ -87,9 +87,9 @@ There are 465 distinct stations, 84 ADA compliant stations and and 37.7% of stat
 ```{r}
 mr_trash =
   read_excel(
-    "Data/202509 Trash Wheel Collection Data.xlsx",
+    "Data/202610 Trash Wheel Collection Data.xlsx",
     sheet = "Mr. Trash Wheel",
-    range = "A2:N709"
+    range = "A2:N742"
   ) |>
   janitor::clean_names() |>
   filter(!is.na(dumpster)) |>
@@ -101,9 +101,10 @@ mr_trash =
 
 professor_trash =
   read_excel(
-    "Data/202509 Trash Wheel Collection Data.xlsx",
+    "Data/202610 Trash Wheel Collection Data.xlsx",
     sheet = "Professor Trash Wheel",
-    range = "A2:M134"
+    range = "A2:M139",
+    na = c("", "NA", "dive")
   ) |>
   janitor::clean_names() |>
   filter(!is.na(dumpster)) |>
@@ -114,15 +115,15 @@ professor_trash =
 
 gwynns_trash =
   read_excel(
-    "Data/202509 Trash Wheel Collection Data.xlsx",
-    sheet = "Gwynns Falls Trash Wheel",
-    range = "A2:L351"
+    "Data/202610 Trash Wheel Collection Data.xlsx",
+    sheet = "Gwynnda the Good Wheel of the W",
+    range = "A2:L394"
   ) |>
   janitor::clean_names() |>
   filter(!is.na(dumpster)) |>
   mutate(
     year = as.integer(year),
-    trash_wheel = "Gwynns Falls Trash Wheel"
+    trash_wheel = "Gwynnda the Good Wheel of the W"
   )
 
 trash_wheel =
@@ -142,7 +143,7 @@ professor_weight =
 gwynns_june =
   trash_wheel |>
   filter(
-    trash_wheel == "Gwynns Falls Trash Wheel",
+    trash_wheel == "Gwynnda the Good Wheel of the W",
     year == 2022,
     str_trim(month) == "June"
   ) |>
